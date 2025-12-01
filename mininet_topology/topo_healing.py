@@ -50,7 +50,18 @@ def run_topology():
                   link=TCLink)
     
     net.start()
-    print("[+] Topology Started. Waiting for Controller...")
+    
+    # --- FIX: ENABLE STP TO PREVENT LOOPS ---
+    print("[*] Enabling Spanning Tree Protocol (STP) on switches...")
+    for sw in net.switches:
+        sw.cmd('ovs-vsctl set Bridge', sw.name, 'stp_enable=true')
+    
+    print("[*] Waiting 45 seconds for STP to converge (Blocking loops)...")
+    import time
+    time.sleep(45) 
+    # ----------------------------------------
+
+    print("[+] Topology Started. Loop blocked. Ready for traffic.")
     print("[*] Use 'link s1 s2 down' in CLI to simulate failure.")
     
     CLI(net)
