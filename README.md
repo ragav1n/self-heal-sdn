@@ -126,6 +126,3 @@ sudo python3 topo_healing.py
 cd monitoring_and_telemetry
 python3 telemetry_agent.py
 ```
-
-```
-```
