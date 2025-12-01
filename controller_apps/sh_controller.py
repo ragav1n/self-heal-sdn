@@ -82,9 +82,9 @@ class SelfHealingController(app_manager.RyuApp):
         actions = [parser.OFPActionOutput(out_port)]
 
         # Install a flow to avoid packet-in next time
-        if out_port != ofproto.OFPP_FLOOD:
-            match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
-            self.add_flow(datapath, 1, match, actions)
+        #if out_port != ofproto.OFPP_FLOOD:
+        #   match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+        #    self.add_flow(datapath, 1, match, actions)
 
         data = None
         if msg.buffer_id == ofproto.OFP_NO_BUFFER:
