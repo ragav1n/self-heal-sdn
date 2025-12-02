@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from collections import deque
 from prometheus_client import start_http_server, Gauge
+import os
 
 # --- CONFIG LOADER ---
 with open("config/settings.yaml", "r") as f:
@@ -38,9 +39,14 @@ class TelemetryAgent:
             'if_flow_mod', 'if_table_occ', 'if_link_loss', 'if_bw',
             'if_churn', 'if_zscore_avg', 'if_ratio_pkt_flow'
         ]
-        df = pd.DataFrame(columns=columns)
-        df.to_csv(config['telemetry']['csv_path'], index=False)
-
+        
+        # FIX: Check if file exists. If yes, skip creating headers (Append Mode).
+        if not os.path.exists(config['telemetry']['csv_path']):
+            df = pd.DataFrame(columns=columns)
+            df.to_csv(config['telemetry']['csv_path'], index=False)
+            print("[*] Created new CSV log file.")
+        else:
+            print("[*] Appending to existing CSV log file.")
     def get_system_metrics(self):
         return {
             'cpu': psutil.cpu_percent(interval=None),
