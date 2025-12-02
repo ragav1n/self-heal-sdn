@@ -47,6 +47,7 @@ class TelemetryAgent:
             print("[*] Created new CSV log file.")
         else:
             print("[*] Appending to existing CSV log file.")
+    
     def get_system_metrics(self):
         return {
             'cpu': psutil.cpu_percent(interval=None),
