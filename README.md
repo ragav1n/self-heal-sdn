@@ -1,22 +1,17 @@
 # Self-Healing SDN Controller Framework
-### Phase 2: ML Anomaly Detection & Diagnosis
 
-**STATUS:** ✅ Monitoring | ✅ Telemetry | ✅ ML Anomaly Detection | ⬜ Self-Healing (Next Phase)
-
----
-
-## 📖 Project Overview
+## Project Overview
 This project serves as a research framework for **Autonomous Network Management**. It integrates Software-Defined Networking (SDN) with Machine Learning to creates a closed-loop control system that can:
 1.  **Monitor** the network in real-time.
 2.  **Detect** anomalies (DoS, Link Failures, Congestion) using trained ML models.
 3.  **Diagnose** the root cause using an Expert Decision Engine.
-4.  **Heal** the network automatically (Phase 3).
+4.  **Heal** the network automatically.
 
 The system uses a **Hybrid AI Approach**, combining **LSTM (Long Short-Term Memory)** networks for temporal sequence analysis, **Isolation Forests** for outlier detection, and **Deterministic Rules** for critical state validation.
 
 ---
 
-## 🏗 System Architecture
+## System Architecture
 
 The framework is composed of three decoupled layers working in parallel:
 
@@ -47,7 +42,7 @@ The framework is composed of three decoupled layers working in parallel:
 
 ---
 
-## 📂 Directory Structure
+## Directory Structure
 ```text
 self-heal-sdn/
 ├── controller_apps/
@@ -73,7 +68,7 @@ self-heal-sdn/
 
 ---
 
-## ⚡ How to Run
+## How to Run
 
 ### Automated Startup
 We have provided a unified script that handles Virtual Environment creation, Dependency installation, Model Training (if needed), and Process orchestration.
@@ -90,12 +85,13 @@ All decisions are logged in real-time JSONL format for consumption by the future
 
 ---
 
-## 🧪 Verification & Attack Simulation
+## Verification & Attack Simulation
 
 Once the system is running, use these commands in the Mininet CLI to test defenses:
 
 ### 1. DDoS Attack Simulation
 **Scenario**: Host `h1` floods the controller with random packets.
+
 **Expected Result**: System detects "DoS Attack" / "Packet-In Burst".
 ```bash
 mininet> h1 ping -f h2
@@ -105,6 +101,7 @@ mininet> h1 hping3 -S -p 80 --flood 10.0.0.2
 
 ### 2. Link Failure (Physical Cut)
 **Scenario**: The link between Switch 1 and Switch 2 is severed.
+
 **Expected Result**: 
 1. Controller receives `PortStatus` event.
 2. ML Pipeline detects "Link Failure".
@@ -117,6 +114,7 @@ mininet> link s1 s2 up
 
 ### 3. Bandwidth Congestion
 **Scenario**: Heavy file transfer between hosts.
+
 **Expected Result**: System detects "Bandwidth Surge".
 ```bash
 mininet> iperf h2 h3
@@ -124,7 +122,7 @@ mininet> iperf h2 h3
 
 ---
 
-## 🛠 Prerequisites
+## Prerequisites
 *   Ubuntu 20.04/22.04 or compatible Linux
 *   Python 3.8+
 *   Mininet
