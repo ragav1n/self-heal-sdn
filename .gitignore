@@ -30,3 +30,10 @@ monitoring_and_telemetry/logs/*
 # --- Ryu & Mininet Artifacts ---
 # Sometimes Ryu creates temporary pid files
 *.pid
+
+# --- Additional Virtual Environments ---
+model/.venv/
+monitoring_and_telemetry/.venv/
+
+# --- Exceptions (Files we WANT to track) ---
+!model/training_data.csv

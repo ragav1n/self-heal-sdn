@@ -26,6 +26,7 @@ class SelfHealingController(app_manager.RyuApp):
         self.packet_in_count = 0
         self.packet_out_count = 0
         self.flow_mod_count = 0
+        self.port_status_count = 0  # FEATURE: Link Flaps / Status Changes
         self.start_time = time.time()
         
         # Link map for topology discovery
@@ -43,6 +44,28 @@ class SelfHealingController(app_manager.RyuApp):
                                           ofproto.OFPCML_NO_BUFFER)]
         self.add_flow(datapath, 0, match, actions)
 
+    @set_ev_cls(ofp_event.EventOFPPortStatus, MAIN_DISPATCHER)
+    def _port_status_handler(self, ev):
+        # Triggered when a link goes DOWN or UP
+        self.port_status_count += 1
+        msg = ev.msg
+        reason = msg.reason
+        port_no = msg.desc.port_no
+        
+        ofproto = msg.datapath.ofproto
+        if reason == ofproto.OFPPR_ADD:
+            self.logger.info("Port added %s", port_no)
+        elif reason == ofproto.OFPPR_DELETE:
+            self.logger.info("Port deleted %s", port_no)
+        elif reason == ofproto.OFPPR_MODIFY:
+            self.logger.info("Port modified %s", port_no)
+        
+        # CRITICAL FIX: Invalidate MAC table for this switch so we re-learn paths
+        # This handles the "No route" / broken connectivity after Link Flap
+        if msg.datapath.id in self.mac_to_port:
+            self.logger.info("Clearing MAC table for dpid %s due to port status change", msg.datapath.id)
+            del self.mac_to_port[msg.datapath.id]
+            
     def add_flow(self, datapath, priority, match, actions, buffer_id=None):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -107,7 +130,9 @@ class SelfHealingControllerController(ControllerBase):
             "packet_in": self.sh_app.packet_in_count,
             "packet_out": self.sh_app.packet_out_count,
             "flow_mod": self.sh_app.flow_mod_count,
+            "port_status": self.sh_app.port_status_count, # NEW FEATURE
             "uptime": time.time() - self.sh_app.start_time
         })
         # FIX IS HERE: Added charset='utf-8'
         return Response(content_type='application/json', body=body, charset='utf-8')
+
