@@ -95,6 +95,21 @@ while True:
 
         # ---------------- DECISION ENGINE ----------------
         decision = engine.run(lstm_output, if_output)
+        
+        # ---------------- LOGGING TO FILE ----------------
+        # Save for Self-Healing Layer
+        decision['timestamp'] = time.time()
+        
+        # Path: monitoring_and_telemetry/logs/anomaly_decisions.json
+        log_dir = os.path.join(script_dir, '..', 'monitoring_and_telemetry', 'logs')
+        log_file = os.path.join(log_dir, 'anomaly_decisions.json')
+        
+        # Ensure dir exists
+        os.makedirs(log_dir, exist_ok=True)
+        
+        # Append as one JSON object per line (JSONL format)
+        with open(log_file, 'a') as f:
+            f.write(json.dumps(decision) + "\n")
 
         # ---------------- LIVE OUTPUT ----------------
         print("\n================ LIVE DECISION ================")
