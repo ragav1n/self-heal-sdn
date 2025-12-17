@@ -1,128 +1,132 @@
 # Self-Healing SDN Controller Framework
-### Phase 1: Monitoring and Telemetry Layer
+### Phase 2: ML Anomaly Detection & Diagnosis
 
-### Project Overview
-This project aims to build a self-healing Software-Defined Networking (SDN) framework capable of autonomously detecting, diagnosing, and recovering from network failures. 
-
-**Current Status:** The **Monitoring and Telemetry Layer** is fully implemented. This layer acts as the sensory system of the framework, collecting real-time data from the control plane and data plane to feed into the future Anomaly Detection Engine.
+**STATUS:** ✅ Monitoring | ✅ Telemetry | ✅ ML Anomaly Detection | ⬜ Self-Healing (Next Phase)
 
 ---
 
-## System Architecture (Implemented)
-We have established a decoupled monitoring architecture that separates data collection from network control:
+## 📖 Project Overview
+This project serves as a research framework for **Autonomous Network Management**. It integrates Software-Defined Networking (SDN) with Machine Learning to creates a closed-loop control system that can:
+1.  **Monitor** the network in real-time.
+2.  **Detect** anomalies (DoS, Link Failures, Congestion) using trained ML models.
+3.  **Diagnose** the root cause using an Expert Decision Engine.
+4.  **Heal** the network automatically (Phase 3).
 
-1. **Network Infrastructure Layer (Mininet):** A simulated data plane featuring a custom "Triangle Loop" topology. It includes redundant physical links and Spanning Tree Protocol (STP) configuration to facilitate link failure simulations and dynamic path rerouting.
-
-2. **Control Plane (Ryu Controller):** The centralized SDN orchestration logic that manages OpenFlow switches. It runs a custom application to handle packet routing and exposes real-time network state metrics (counters, flow stats) via a dedicated northbound REST API.
-
-3. **Telemetry & Feature Engineering Engine (Python Agent):** A dedicated data aggregation module that polls the Control Plane, computes derivative metrics (such as throughput rates and latency variations), performs statistical normalization (Z-score calculation), and serializes the data for consumption.
-
-4. **Visualization & Time-Series Layer (Grafana + Prometheus):** A monitoring stack comprising a time-series database (Prometheus) for metric storage and a real-time dashboard (Grafana) for visual analysis of network health and performance trends.
-
-5. **Training Data Repository (CSV Logging):** An automated logging system that generates structured, labeled datasets containing the specific 8 LSTM and 12 Isolation Forest features required for training the Machine Learning Anomaly Detection models.
+The system uses a **Hybrid AI Approach**, combining **LSTM (Long Short-Term Memory)** networks for temporal sequence analysis, **Isolation Forests** for outlier detection, and **Deterministic Rules** for critical state validation.
 
 ---
 
-## Directory Structure
+## 🏗 System Architecture
+
+The framework is composed of three decoupled layers working in parallel:
+
+### 1. Infrastructure Layer (The Network)
+*   **Mininet**: Simulates the physical data plane comprising hosts, switches, and links.
+*   **Topology**: A custom "Triangle Loop" topology with redundant paths (`s1-s2`, `s2-s3`, `s3-s1`) to allow for path recovery testing.
+*   **Ryu Controller**: The brain of the SDN. It runs a custom application (`sh_controller.py`) that:
+    *   Manages OpenFlow flow rules.
+    *   Tracks **Port Status Events** to detect link flaps immediately.
+    *   Exposes a comprehensive **Rest API** (`/stats/sh_features`) for external polling.
+
+### 2. Monitoring Layer (Telemetry Agent)
+*   **Telemetry Agent**: A standalone Python service (`telemetry_agent.py`) that acts as the "Sensory Cortex".
+*   **Feature Engineering**: It polls the Controller and Linux Kernel interfaces (`/sys/class/net`) to measure:
+    *   **Traffic Rates**: Packet-In, Packet-Out, Bandwidth (Bytes/sec).
+    *   **System Health**: CPU, RAM, and Control Plane Latency (RTT).
+    *   **Derived Metrics**: Z-Scores (Standard Deviation) and Flow Efficiency Ratios.
+
+### 3. ML Analysis Layer (The Brain)
+*   **Real-Time Pipeline**: A loop (`run_realtime_pipeline.py`) that ingests live telemetry and feeds it into the models.
+*   **Model 1: LSTM (Temporal)**:
+    *   *Purpose*: Detects anomalies that evolve over time (e.g., slow memory leaks, gradually increasing latency).
+    *   *Input*: A sequence of the last 10 data points.
+*   **Model 2: Isolation Forest (Structural)**:
+    *   *Purpose*: Detects immediate "Shape" outliers (e.g., massive Packet-In packet with zero Flow-Mods).
+    *   *Input*: Immediate snapshot of system state.
+*   **Decision Engine**: A rule-based classifier (`diagnosis_decision_engine.py`) that interprets the raw model outputs. It prioritizes critical alerts (e.g., "DoS Detected") over noise (e.g., "Bandwidth Surge") to prevent alert fatigue.
+
+---
+
+## 📂 Directory Structure
 ```text
 self-heal-sdn/
 ├── controller_apps/
-│   └── sh_controller.py       # Ryu App with REST API & Traffic Counters
+│   └── sh_controller.py       # SDN Controller Logic (Ryu)
 ├── mininet_topology/
-│   └── topo_healing.py        # Triangle Topology with STP & Link Failure support
+│   └── topo_healing.py        # Custom Mininet Topology
+├── model/
+│   ├── lstm_final.py          # LSTM Training Script
+│   ├── isolationForest.py     # Isolation Forest Training Script
+│   ├── run_realtime_pipeline.py # MAIN PIPELINE: Inference Loop
+│   ├── anomaly_inference.py   # Inference Logic Class
+│   ├── diagnosis_decision_engine.py # Decision prioritization logic
+│   ├── lstmModels/            # Trained LSTM weights
+│   └── ifmodels/              # Trained IF weights
 ├── monitoring_and_telemetry/
-│   ├── config/
-│   │   └── settings.yaml      # Configuration for IP, ports, and thresholds
 │   ├── logs/
-│   │   └── training_data.csv  # The ML-Ready Dataset
-│   └── telemetry_agent.py     # Main script for Feature Extraction & logging
+│   │   ├── training_data.csv  # The dataset used for training
+│   │   └── anomaly_decisions.json # LIVE OUTPUT for Self-Healing
+│   └── telemetry_agent.py     # Metric Collection Agent
+├── run_project.sh             # Master Startup Script
 └── README.md
-````
-
------
-
-## Component Details
-
-### 1\. Network Topology (`topo_healing.py`)
-
-  * **Features:** Implements a triangle topology with redundant links (`s1-s2`, `s2-s3`, `s3-s1`).
-  * **Loop Prevention:** Explicitly enables Spanning Tree Protocol (STP) on Open vSwitch to prevent broadcast storms during loop conditions.
-  * **Failure Simulation:** Allows manual link degradation and failure via the Mininet CLI (`link s1 s2 down`).
-
-### 2\. Custom Controller (`sh_controller.py`)
-
-  * **Base:** Built on the Ryu SDN Framework.
-  * **Telemetry API:** Exposes a custom REST endpoint (`/stats/sh_features`) that provides atomic counters for `packet_in`, `packet_out`, and `flow_mod`.
-  * **Amnesia Mode (Data Generation):** Configured to forcefully route packets via the controller (Control Plane) rather than installing permanent flows. This maximizes data granularity for ML training during the data collection phase.
-
-### 3\. Telemetry Agent (`telemetry_agent.py`)
-
-This is the core monitoring engine. It performs three key tasks:
-
-1.  **Ingestion:** Scrapes raw metrics from the Controller API and System (CPU/RAM).
-2.  **Feature Engineering:** transform raw counters into rates (e.g., `packet_in_rate = Δpackets / Δtime`) and statistical metrics (Z-Scores).
-3.  **Export:** Pushes live metrics to Prometheus/Grafana and logs history to CSV.
-
------
-
-## Features Implemented
-
-The Telemetry Agent automatically generates the exact feature set required by the Anomaly Detection Engine.
-
-#### LSTM Features (Temporal Analysis)
-
-These 8 features are logged to support Time-Series forecasting:
-
-1.  `lstm_cpu`: Controller CPU Load
-2.  `lstm_mem`: Controller Memory Usage
-3.  `lstm_rtt`: Controller-Switch Latency
-4.  `lstm_pkt_in`: Packet-In Rate (Control Plane Load)
-5.  `lstm_pkt_out`: Packet-Out Rate (Response Activity)
-6.  `lstm_flow_mod`: Flow Modification Rate
-7.  `lstm_flows_sec`: New Flows per Second
-8.  `lstm_bw`: Bandwidth Usage
-
-#### Isolation Forest Features (Snapshot Analysis)
-
-These 12 features are logged to support outlier detection:
-
-1.  `if_cpu`: CPU Snapshot
-2.  `if_mem`: Memory Snapshot
-3.  `if_rtt`: Latency Snapshot
-4.  `if_pkt_in`: Packet-In Burst detection
-5.  `if_pkt_out`: Packet-Out Snapshot
-6.  `if_flow_mod`: Flow-Mod Snapshot
-7.  `if_table_occ`: Flow Table Occupancy
-8.  `if_link_loss`: Link State Status
-9.  `if_bw`: Bandwidth Snapshot
-10. `if_churn`: Flow Churn Rate
-11. `if_zscore_avg`: Statistical deviation of CPU (Z-Score)
-12. `if_ratio_pkt_flow`: Ratio of Packets to Flow Mods (Efficiency Metric)
-
------
-
-## How to Run the Monitoring Layer
-
-The system requires three separate terminals to run the architectural components in parallel.
-
-**Terminal 1: The Controller**
-
-```bash
-cd controller_apps
-ryu-manager sh_controller.py --verbose --ofp-tcp-listen-port 6633
 ```
 
-**Terminal 2: The Network (Mininet)**
+---
+
+## ⚡ How to Run
+
+### Automated Startup
+We have provided a unified script that handles Virtual Environment creation, Dependency installation, Model Training (if needed), and Process orchestration.
 
 ```bash
-cd mininet_topology
-sudo python3 topo_healing.py
-# Wait 45s for STP convergence before typing commands
+./run_project.sh
 ```
+*   **Terminal Output**: You will see live logs from the Controller, Agent, and ML Pipeline.
+*   **Mininet CLI**: You will be dropped into the `mininet>` shell to run tests.
 
-**Terminal 3: The Telemetry Agent**
+### Output Location
+All decisions are logged in real-time JSONL format for consumption by the future Self-Healing layer:
+> `monitoring_and_telemetry/logs/anomaly_decisions.json`
 
+---
+
+## 🧪 Verification & Attack Simulation
+
+Once the system is running, use these commands in the Mininet CLI to test defenses:
+
+### 1. DDoS Attack Simulation
+**Scenario**: Host `h1` floods the controller with random packets.
+**Expected Result**: System detects "DoS Attack" / "Packet-In Burst".
 ```bash
-cd monitoring_and_telemetry
-python3 telemetry_agent.py
+mininet> h1 ping -f h2
+# OR
+mininet> h1 hping3 -S -p 80 --flood 10.0.0.2
 ```
+
+### 2. Link Failure (Physical Cut)
+**Scenario**: The link between Switch 1 and Switch 2 is severed.
+**Expected Result**: 
+1. Controller receives `PortStatus` event.
+2. ML Pipeline detects "Link Failure".
+3. Controller clears MAC table to re-learn paths.
+```bash
+mininet> link s1 s2 down
+# Restore with:
+mininet> link s1 s2 up
+```
+
+### 3. Bandwidth Congestion
+**Scenario**: Heavy file transfer between hosts.
+**Expected Result**: System detects "Bandwidth Surge".
+```bash
+mininet> iperf h2 h3
+```
+
+---
+
+## 🛠 Prerequisites
+*   Ubuntu 20.04/22.04 or compatible Linux
+*   Python 3.8+
+*   Mininet
+*   Ryu SDN Manager
+*   TensorFlow / Scikit-Learn
